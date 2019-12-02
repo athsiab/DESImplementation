@@ -8,44 +8,76 @@ using System.Text;
 
 namespace DESImplementation {
     class Program {
-        private static DESCryptoServiceProvider des;
+        private static TripleDESCryptoServiceProvider des;
 
         static void Main(string[] args) {
             string text = "SIABIRIS";
             string key = "F46Ε986435465354";
-            //string key = "54";
-            string initVector = "ABCDEFGH";
+            string initVector = "";
 
-            var KeyList = new List<string>();
-            //the key size is equivalent to 136 bits
-            //so we split it into 2 64 bit keys
-            //and one key with the last 8 bits and a random character to fill out the required 64 bit key for the DES algorithm
-            KeyList.Add("F46Ε986");
-            KeyList.Add("43546535");
-            KeyList.Add("40000000");
-
-            foreach (var splitKey in KeyList) {
-                text = Encrypt(text, splitKey, initVector);
-                Console.WriteLine(text);
+            //initialization vector needs to be 8 bytes and different at each execution 
+            //so we instantiate it randomly
+            while (Encoding.UTF8.GetByteCount(initVector) < 8) {
+                initVector += GetRandomChar();
             }
 
-            foreach(var splitKey in KeyList) {
-                //text = Decrypt(text, splitKey, initVector);
+            Console.WriteLine("Would you like to enter a key and plain text or use the defaults ? y/n ");
+            string input = Console.ReadLine();
+            while (input != "y" && input != "n") {
+                Console.WriteLine("Please enter a valid answer (y/n): ");
+                input = Console.ReadLine();
+            }
+            if (input == "y") {
+                Console.WriteLine("Please Enter your plain text: ");
+                text = Console.ReadLine();
+                Console.WriteLine("Please Enter your key: ");
+                key = Console.ReadLine();
             }
 
+
+            //in order to comply with 3DES key requirements we need a 24 byte (192 bit key)
+            //our current key is 17*8 = 136 bytes, so we need to pad it out
+            while (Encoding.UTF8.GetByteCount(key) < 24) {
+                key += GetRandomChar();
+            }
             
-            string message = "";
+            text = Encrypt(text, key, initVector);
+
+            Console.WriteLine("Encryption Results: ");
+            Console.WriteLine("Cipher Text: " + text);
+            Console.WriteLine("Triple DES compliant key: " + key);
+            Console.WriteLine("Initialization Vector: " + initVector);
+            Console.WriteLine("Execution Complete, press any key to exit.");
+            Console.ReadKey();
+
+            input = "";
+            Console.WriteLine("Would you like to decrypt the string you just encrypted ? (y/n) ");
+            input = Console.ReadLine();
+            while (input != "y" && input != "n") {
+                Console.WriteLine("Please enter a valid answer (y/n): ");
+                input = Console.ReadLine();
+            }
+            if (input == "y") {
+                var decryptedText = Decrypt(text, key, initVector);
+                Console.WriteLine("Decryption Results: ");
+                Console.WriteLine("Decrypted Plain Text: " + decryptedText);
+                Console.WriteLine("Triple DES compliant key: " + key);
+                Console.WriteLine("Initialization Vector: " + initVector);
+                Console.WriteLine("Execution Complete, press any key to exit.");
+                Console.ReadKey();
+            }
+            
         }
-        
+
         private static string Encrypt(string text, string keyValue, string initializationVector) {
-            des = new DESCryptoServiceProvider();
+            des = new TripleDESCryptoServiceProvider();
             byte[] input = Encoding.UTF8.GetBytes(text);
             byte[] output = Transform(input, des.CreateEncryptor(Encoding.UTF8.GetBytes(keyValue), Encoding.UTF8.GetBytes(initializationVector)));
             return Convert.ToBase64String(output);
         }
 
         private static string Decrypt(string text, string keyValue, string initializationVector) {
-            des = new DESCryptoServiceProvider();
+            des = new TripleDESCryptoServiceProvider();
             byte[] input = Convert.FromBase64String(text);
             byte[] output = Transform(input, des.CreateDecryptor(Encoding.UTF8.GetBytes(keyValue), Encoding.UTF8.GetBytes(initializationVector)));
             return Encoding.UTF8.GetString(output);
@@ -55,7 +87,7 @@ namespace DESImplementation {
             // Create the necessary streams
             // Transform the bytes as requesed
 
-            byte[] encryptedText;
+            byte[] resultText;
             using (var memStream = new MemoryStream())
             using (var crypStream = new CryptoStream(memStream, cryptoTransform, CryptoStreamMode.Write)) {
 
@@ -66,24 +98,19 @@ namespace DESImplementation {
             
                 //read the memory stream and convert to a byte array
                 memStream.Position = 0;
-                encryptedText = new byte[memStream.Length];
-                memStream.Read(encryptedText, 0, encryptedText.Length);
-
-                // Clean up
-                memStream.Close();
-                crypStream.Close();
+                resultText = new byte[memStream.Length];
+                memStream.Read(resultText, 0, resultText.Length);
             }
-            //
-            return encryptedText;
+            //return our encrypted/decrypted text
+            return resultText;
         }
 
-
-        private static string CharListToString(List<char> charList) {
-            string result = "";
-            foreach(var symbol in charList) {
-                result += symbol;
-            }
-            return result;
+        private static char GetRandomChar() {
+            int i = 0;
+            var rand = new Random();
+            string chars = "1234567890!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKLZXCVBNM/<>?";
+            int index = rand.Next(chars.Length);
+            return chars[index];
         }
     }
 }
